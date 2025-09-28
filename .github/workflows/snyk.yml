@@ -34,7 +34,9 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         continue-on-error: true
-
+      - name: List files
+        run: ls -la
+        
       - name: Save Snyk results in JSON
         run: snyk test --json-file-output=.github/snyk-result.json || true
 
