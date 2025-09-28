@@ -37,7 +37,7 @@ jobs:
           python .github/scripts/snyk_to_pdf.py
           
       - name: Upload PDF report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: snyk-report
           path: snyk-report.pdf
