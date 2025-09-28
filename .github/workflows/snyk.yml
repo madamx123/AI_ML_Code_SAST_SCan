@@ -41,7 +41,7 @@ jobs:
       - name: Convert Snyk JSON to PDF
         run: |
           pip install fpdf
-          python .github/scripts/snyk_to_pdf.py
+          python .github/snyk_to_pdf.py
           
       - name: Upload PDF report
         uses: actions/upload-artifact@v4
