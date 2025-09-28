@@ -18,6 +18,13 @@ jobs:
         with:
           python-version: '3.9'
 
+      - name: Install Snyk
+        run: npm install -g snyk
+      - name: Run Snyk test
+        run: snyk test --json-file-output=snyk-result.json || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
