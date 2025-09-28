@@ -36,7 +36,7 @@ jobs:
         continue-on-error: true
 
       - name: Save Snyk results in JSON
-        run: snyk test --json-file-output=snyk-result.json || true
+        run: snyk test --json-file-output=.github/snyk-result.json || true
 
       - name: Convert Snyk JSON to PDF
         run: |
