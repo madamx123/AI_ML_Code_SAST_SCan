@@ -7,46 +7,33 @@ on:
     branches: [ main ]
 
 jobs:
-  snyk:
+  snyk_scan:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Check out code
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
-
-      - name: Install Snyk
-        run: npm install -g snyk
-      - name: Run Snyk test
-        run: snyk test --json-file-output=.github/snyk-result.json || true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install snyk fpdf
 
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/python@master
+      - name: Run Snyk scan and output results as JSON
+        run: snyk test --json-file-output=snyk-result.json || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true
-      - name: List files
-        run: ls -la
-        
-      - name: Save Snyk results in JSON
-        run: snyk test --json-file-output=./.github/snyk-result.json || true
 
-      - name: Convert Snyk JSON to PDF
-        run: |
-          pip install fpdf
-          python .github/snyk_to_pdf.py
-          
-      - name: Upload PDF report
+      - name: Convert Snyk JSON result to HTML
+        run: python .github/scripts/snyk_to_html.py
+
+      - name: Upload Snyk HTML report as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: snyk-report
-          path: snyk-report.pdf
+          name: snyk_html_report
+          path: snyk_report.html
