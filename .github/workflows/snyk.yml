@@ -21,7 +21,7 @@ jobs:
       - name: Install Snyk
         run: npm install -g snyk
       - name: Run Snyk test
-        run: snyk test --json-file-output=snyk-result.json || true
+        run: snyk test --json-file-output=.github/snyk-result.json || true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
