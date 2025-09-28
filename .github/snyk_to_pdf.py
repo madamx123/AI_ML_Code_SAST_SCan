@@ -1,7 +1,7 @@
 import json
 from fpdf import FPDF
 
-with open('snyk-result.json', 'r') as f:
+with open('.github/snyk-result.json', 'r') as f:
     data = json.load(f)
 
 pdf = FPDF()
