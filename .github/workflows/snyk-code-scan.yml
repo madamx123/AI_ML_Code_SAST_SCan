@@ -1,0 +1,110 @@
+name: Snyk Code Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      target-path:
+        description: "Relative path to AILM code directory to scan (e.g., AILM/)"
+        type: string
+        required: true
+        default: AILM
+      report-dir:
+        description: "Directory to write reports (relative to repo root)"
+        type: string
+        required: true
+        default: snyk-reports
+      severity-threshold:
+        description: "Minimum severity to report (low|medium|high|critical)"
+        type: choice
+        options:
+          - low
+          - medium
+          - high
+          - critical
+        required: true
+        default: low
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  snyk-code:
+    name: Snyk Code scan and report
+    runs-on: ubuntu-latest
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve inputs
+        id: resolve
+        shell: bash
+        run: |
+          TARGET_PATH="${{ github.event.inputs['target-path'] }}"
+          REPORT_DIR="${{ github.event.inputs['report-dir'] }}"
+
+          if [ -z "$TARGET_PATH" ]; then TARGET_PATH="AILM"; fi
+          if [ -z "$REPORT_DIR" ]; then REPORT_DIR="snyk-reports"; fi
+
+          # Normalize out any leading ./
+          TARGET_PATH="${TARGET_PATH#./}"
+          REPORT_DIR="${REPORT_DIR#./}"
+
+          echo "target_path=$TARGET_PATH" >> "$GITHUB_OUTPUT"
+          echo "report_dir=$REPORT_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Validate target directory exists
+        shell: bash
+        run: |
+          if [ ! -d "${{ steps.resolve.outputs.target_path }}" ]; then
+            echo "Error: target path '${{ steps.resolve.outputs.target_path }}' does not exist" >&2
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Snyk CLI
+        uses: snyk/actions/setup@v3
+
+      - name: Authenticate Snyk
+        run: snyk auth "$SNYK_TOKEN"
+
+      - name: Ensure report directory
+        shell: bash
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/${{ steps.resolve.outputs.report_dir }}"
+          echo "Reports will be written to: $GITHUB_WORKSPACE/${{ steps.resolve.outputs.report_dir }}"
+
+      - name: Run Snyk Code test (JSON + SARIF)
+        working-directory: ${{ steps.resolve.outputs.target_path }}
+        continue-on-error: true
+        run: |
+          snyk code test \
+            --json-file-output="$GITHUB_WORKSPACE/${{ steps.resolve.outputs.report_dir }}/snyk-code.json" \
+            --sarif-file-output="$GITHUB_WORKSPACE/${{ steps.resolve.outputs.report_dir }}/snyk-code.sarif" \
+            --severity-threshold="${{ github.event.inputs['severity-threshold'] }}"
+
+      - name: Convert JSON to HTML
+        shell: bash
+        run: |
+          npm install -g snyk-to-html@latest
+          snyk-to-html -i "$GITHUB_WORKSPACE/${{ steps.resolve.outputs.report_dir }}/snyk-code.json" \
+                        -o "$GITHUB_WORKSPACE/${{ steps.resolve.outputs.report_dir }}/snyk-code.html"
+
+      - name: Upload HTML/JSON/SARIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-code-report
+          path: ${{ steps.resolve.outputs.report_dir }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload SARIF to GitHub code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.resolve.outputs.report_dir }}/snyk-code.sarif
